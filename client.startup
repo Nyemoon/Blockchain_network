@@ -1,0 +1,24 @@
+#!/bin/bash
+# client.startup — executado automaticamente pelo Kathara ao subir o container
+
+# ── Rede ──────────────────────────────────────────────────────────────────────
+ip addr add 10.0.0.2/24 dev eth0
+ip link set eth0 up
+
+# ── Bitcoin Core ──────────────────────────────────────────────────────────────
+mkdir -p /root/.bitcoin /captures
+
+cp /root/bitcoin.conf /root/.bitcoin/bitcoin.conf
+
+# ── Captura 1: TCP + handshake P2P completo ───────────────────────────────────
+# Inicia tcpdump ANTES do bitcoind para capturar o 3-way handshake TCP + version/verack
+tcpdump -i eth0 -w /captures/01_handshake.pcap port 18444 &
+TCPDUMP_PID=$!
+echo "[client] tcpdump iniciado (PID $TCPDUMP_PID)"
+
+sleep 2
+
+bitcoind -daemon -conf=/root/.bitcoin/bitcoin.conf -datadir=/root/.bitcoin
+
+echo "[client] bitcoind iniciado. Aguarde o script de experimento."
+echo "TCPDUMP_PID=$TCPDUMP_PID" > /root/tcpdump.pid
