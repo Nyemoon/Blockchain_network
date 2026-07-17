@@ -1,0 +1,22 @@
+#!/bin/bash
+# server.startup — executado automaticamente pelo Kathara ao subir o container
+
+# ── Rede ──────────────────────────────────────────────────────────────────────
+ip addr add 10.0.0.1/24 dev eth0
+ip link set eth0 up
+
+# ── Bitcoin Core ──────────────────────────────────────────────────────────────
+mkdir -p /root/.bitcoin
+cp /root/bitcoin.conf /root/.bitcoin/bitcoin.conf
+
+bitcoind -daemon -conf=/root/.bitcoin/bitcoin.conf -datadir=/root/.bitcoin
+
+echo "[server] bitcoind iniciado, aguardando..."
+sleep 5
+
+# ── Pré-minera 101 blocos (matura coinbase pra usar saldo) ────────────────────
+bitcoin-cli -regtest createwallet "default" 2>/dev/null || true
+sleep 1
+ADDR=$(bitcoin-cli -regtest getnewaddress "mining" "bech32")
+bitcoin-cli -regtest generatetoaddress 101 "$ADDR" > /dev/null
+echo "[server] 101 blocos gerados. Pronto para conexões P2P."
